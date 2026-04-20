@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Whale Control & Monitor - Interactive</title>
+    <style>
+        :root {
+            --marino-main: #0077be;
+            --marino-light: #e3f2fd;
+            --white: #ffffff;
+            --accent: #00d4ff;
+            --dark: #003366;
+            --danger: #dc3545;
+            --success: #28a745;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--white);
+            color: var(--dark);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-bottom: 50px;
+        }
+
+        header {
+            width: 100%;
+            padding: 20px 0;
+            text-align: center;
+            background: var(--marino-light);
+            border-bottom: 2px solid var(--marino-main);
+        }
+
+        .btn-connect {
+            background-color: var(--marino-main);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 20px 0;
+            transition: 0.3s;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .btn-connect:hover { background-color: var(--dark); transform: translateY(-2px); }
+
+        /* --- DASHBOARD INTERATTIVA --- */
+        .control-panel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            margin: 20px;
+            padding: 25px;
+            border: 2px solid var(--marino-light);
+            border-radius: 25px;
+            background: #fafafa;
+        }
+
+        .control-group { text-align: center; margin-bottom: 10px; }
+        .control-group h3 { font-size: 0.9rem; letter-spacing: 1px; color: var(--marino-main); }
+
+        .rudder-controls, .speed-controls { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+        .control-btn {
+            background: var(--white);
+            border: 2px solid var(--marino-main);
+            color: var(--marino-main);
+            min-width: 70px;
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .control-btn:active { background: var(--marino-main); color: white; transform: scale(0.9); }
+
+        .speed-btn {
+            background: var(--dark);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        /* --- TELEMETRIA --- */
+        .telemetry-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 15px;
+            width: 90%;
+            max-width: 900px;
+            margin-top: 20px;
+        }
+
+        .stat-box {
+            background: var(--marino-light);
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            border-bottom: 4px solid var(--marino-main);
+        }
+
+        .stat-box h3 { font-size: 0.75rem; margin: 0; color: var(--marino-main); text-transform: uppercase; }
+        .stat-box p { font-size: 1.8rem; font-weight: bold; margin: 10px 0 0; }
+
+        /* Alert Balena */
+        .whale-alert {
+            width: 90%;
+            max-width: 900px;
+            margin-top: 25px;
+            padding: 40px 20px;
+            border-radius: 20px;
+            text-align: center;
+            background: #fdfdfd;
+            border: 2px solid #eee;
+            transition: all 0.5s ease;
+        }
+
+        .whale-alert.detected {
+            background: var(--marino-main);
+            color: white;
+            border-color: var(--dark);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>⚓ WHALE COMMAND & MONITOR</h1>
+    <p id="status-serial">🔴 Stato: Disconnesso</p>
+</header>
+
+<button class="btn-connect" id="connect-btn">CONNETTI DISPOSITIVO HC-05</button>
+
+<div class="control-panel">
+    <div class="control-group">
+        <h3>TIMONE</h3>
+        <div class="rudder-controls">
+            <button class="control-btn" onclick="sendCommand('L')">◀ SINISTRA</button>
+            <button class="control-btn" onclick="sendCommand('C')">CENTRO</button>
+            <button class="control-btn" onclick="sendCommand('R')">DESTRA ▶</button>
+        </div>
+    </div>
+
+    <div class="control-group">
+        <h3>PROPULSIONE</h3>
+        <div class="speed-controls">
+            <button class="speed-btn" onclick="sendCommand('+')">AUMENTA +</button>
+            <button class="speed-btn" style="background:var(--danger)" onclick="sendCommand('S')">STOP</button>
+            <button class="speed-btn" onclick="sendCommand('-')">RIDUCI -</button>
+        </div>
+        <div class="speed-controls" style="margin-top: 10px;">
+            <button class="speed-btn" style="background:var(--success)" onclick="sendCommand('F')">MARCIA AVANTI</button>
+            <button class="speed-btn" style="background:var(--danger)" onclick="sendCommand('B')">RETROMARCIA</button>
+        </div>
+    </div>
+</div>
+
+<div class="telemetry-grid">
+    <div class="stat-box">
+        <h3>VALORE RAW</h3>
+        <p id="raw-val">---</p>
+    </div>
+    <div class="stat-box">
+        <h3>TIMONE</h3>
+        <p id="rudder-pos">---</p>
+    </div>
+    <div class="stat-box">
+        <h3>VELOCITÀ</h3>
+        <p id="speed-val">---</p>
+    </div>
+    <div class="stat-box">
+        <h3>MOTORE</h3>
+        <p id="mot-dir">---</p>
+    </div>
+</div>
+
+<div id="whale-alert" class="whale-alert">
+    <h2 id="whale-text">Scansione Orizzonte...</h2>
+    <p id="freq-text">Monitoraggio frequenza acustica 20Hz</p>
+</div>
+
+<script>
+    let port;
+    let reader;
+    let inputBuffer = ""; 
+
+    // CONNESSIONE SERIALE HC-05
+    document.getElementById('connect-btn').addEventListener('click', async () => {
+        try {
+            port = await navigator.serial.requestPort();
+            await port.open({ baudRate: 9600 });
+            
+            document.getElementById('status-serial').innerText = "🟢 Stato: Connesso all'HC-05";
+            document.getElementById('connect-btn').style.display = "none";
+
+            const textDecoder = new TextDecoderStream();
+            const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
+            reader = textDecoder.readable.getReader();
+
+            // Loop di ascolto continuo
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                if (value) {
+                    inputBuffer += value;
+                    // Elabora solo quando riceve una riga completa (\n)
+                    if (inputBuffer.includes("\n")) {
+                        let lines = inputBuffer.split("\n");
+                        let completeData = lines[lines.length - 2].trim();
+                        processArduinoData(completeData);
+                        inputBuffer = lines[lines.length - 1];
+                    }
+                }
+            }
+        } catch (error) {
+            console.error(error);
+            alert("Errore: Assicurati che l'HC-05 sia associato e di usare Chrome/Edge.");
+        }
+    });
+
+    // INVIO COMANDI AD ARDUINO
+    async function sendCommand(char) {
+        if (port && port.writable) {
+            const encoder = new TextEncoder();
+            const writer = port.writable.getWriter();
+            await writer.write(encoder.encode(char));
+            writer.releaseLock();
+            console.log("Comando inviato:", char);
+        } else {
+            alert("Connetti prima il Bluetooth!");
+        }
+    }
+
+    // ELABORAZIONE DATI RICEVUTI
+    function processArduinoData(dataString) {
+        // Formato atteso: KY024:512,DIR:C,SPD:180,MOT:F
+        const parts = dataString.split(',');
+        const values = {};
+        
+        parts.forEach(p => {
+            const [key, val] = p.split(':');
+            if(key && val) values[key.trim()] = val.trim();
+        });
+
+        // Aggiornamento Valore RAW e Logica Balena
+        if (values.KY024) {
+            const raw = parseInt(values.KY024);
+            document.getElementById('raw-val').innerText = raw;
+            
+            const alertBox = document.getElementById('whale-alert');
+            const alertText = document.getElementById('whale-text');
+            
+            // Soglia 400 (corrisponde ai 20Hz stabiliti)
+            if (raw < 400) {
+                alertBox.classList.add('detected');
+                alertText.innerText = "🐋 BALENA RILEVATA!";
+            } else {
+                alertBox.classList.remove('detected');
+                alertText.innerText = "Oceano Calmo";
+            }
+        }
+
+        // Aggiornamento Posizione Timone
+        if (values.DIR) {
+            const dirMap = {'C': 'CENTRO', 'L': 'SINISTRA', 'R': 'DESTRA'};
+            document.getElementById('rudder-pos').innerText = dirMap[values.DIR] || values.DIR;
+        }
+
+        // Aggiornamento Velocità
+        if (values.SPD) document.getElementById('speed-val').innerText = values.SPD;
+        
+        // Aggiornamento Stato Motore
+        if (values.MOT) {
+            const motMap = {'F': 'AVANTI', 'B': 'INDIETRO', 'S': 'STOP'};
+            document.getElementById('mot-dir').innerText = motMap[values.MOT] || values.MOT;
+        }
+    }
+</script>
+</body>
+</html>
